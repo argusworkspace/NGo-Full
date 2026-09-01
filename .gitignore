@@ -1,0 +1,30 @@
+# --- backend (Python/FastAPI) ---
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/.venv/
+backend/venv/
+backend/env/
+backend/ENV/
+backend/.env
+backend/*.db
+backend/*.sqlite3
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/htmlcov/
+backend/.coverage
+
+# --- frontend (Next.js) ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env*.local
+frontend/.env
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/.vercel
+
+# --- common ---
+.DS_Store
+*.log
