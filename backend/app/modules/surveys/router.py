@@ -9,6 +9,7 @@ from .schemas import (
     ProjectResponse,
     SubmitResponseRequest,
     ResponseOut,
+    DashboardResponse,
 )
 from . import service
 
@@ -83,6 +84,13 @@ async def list_responses(
     project_id: str, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)
 ):
     return await service.list_responses(project_id, db)
+
+
+@project_router.get("/{project_id}/dashboard", response_model=DashboardResponse)
+async def get_dashboard(
+    project_id: str, db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)
+):
+    return await service.get_dashboard(project_id, db)
 
 
 @response_router.get("/{response_id}", response_model=ResponseOut)

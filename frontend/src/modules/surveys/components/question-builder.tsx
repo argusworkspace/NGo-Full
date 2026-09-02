@@ -12,6 +12,9 @@ const TYPE_LABELS: Record<QuestionType, string> = {
   multiple_choice: "Multiple choice",
   single_choice: "Choose one option",
   text: "Text (writing)",
+  textarea: "Long text (paragraph)",
+  number: "Number",
+  date: "Date",
 };
 
 const CHOICE_TYPES: QuestionType[] = ["single_choice", "multiple_choice"];

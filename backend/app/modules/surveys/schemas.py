@@ -91,3 +91,41 @@ class ResponseOut(BaseModel):
     updated_at: datetime.datetime
 
     model_config = {**CamelModel, "from_attributes": True}
+
+
+class QuestionStat(BaseModel):
+    question_id: str
+    question: str
+    type: QuestionType
+    response_count: int
+
+    # number / rating
+    average: float | None = None
+    min: float | None = None
+    max: float | None = None
+
+    # boolean
+    true_count: int | None = None
+    false_count: int | None = None
+
+    # single_choice / multiple_choice — option id -> count
+    option_counts: dict[str, int] | None = None
+
+    # text / textarea
+    summary: str | None = None
+    summary_source: Literal["ai", "heuristic"] | None = None
+    sample_answers: list[str] | None = None
+
+    model_config = CamelModel
+
+
+class DashboardResponse(BaseModel):
+    project_id: str
+    project_name: str
+    description: str | None
+    status: Literal["DRAFT", "PUBLISHED", "ARCHIVED"]
+    total_responses: int
+    questions: list[QuestionStat]
+    generated_at: datetime.datetime
+
+    model_config = CamelModel
