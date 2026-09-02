@@ -1,6 +1,7 @@
 import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from app.core.llm import summarize_texts
 from app.modules.auth.models import User
 from app.shared.exceptions import NotFoundException, ForbiddenException, BadRequestException, ValidationException
 from .models import Project, Response
@@ -11,6 +12,8 @@ from .schemas import (
     SubmitResponseRequest,
     Answer,
     ResponseOut,
+    QuestionStat,
+    DashboardResponse,
 )
 
 
@@ -183,6 +186,75 @@ async def list_responses(project_id: str, db: AsyncSession) -> list[ResponseOut]
         select(Response).where(Response.project_id == project_id).order_by(Response.submitted_at.desc())
     )
     return [ResponseOut.model_validate(r) for r in result.scalars().all()]
+
+
+def _fallback_text_summary(texts: list[str]) -> str:
+    count = len(texts)
+    words = sum(len(t.split()) for t in texts) / count if count else 0
+    preview = " • ".join(t.strip().replace("\n", " ")[:90] for t in texts[:3])
+    return f"{count} responses (avg {words:.0f} words). Examples: {preview}"
+
+
+async def get_dashboard(project_id: str, db: AsyncSession) -> DashboardResponse:
+    project = await _get_project_or_404(project_id, db)
+    result = await db.execute(select(Response).where(Response.project_id == project_id))
+    responses = result.scalars().all()
+
+    answers_by_question: dict[str, list] = {q["id"]: [] for q in project.questions}
+    for r in responses:
+        for a in r.answers:
+            qid = a.get("question_id")
+            if qid in answers_by_question:
+                answers_by_question[qid].append(a.get("answer"))
+
+    question_stats: list[QuestionStat] = []
+    for q in project.questions:
+        answers = answers_by_question.get(q["id"], [])
+        stat = QuestionStat(
+            question_id=q["id"], question=q["question"], type=q["type"], response_count=len(answers)
+        )
+
+        if q["type"] in ("number", "rating"):
+            nums = [a for a in answers if isinstance(a, (int, float)) and not isinstance(a, bool)]
+            if nums:
+                stat.average = round(sum(nums) / len(nums), 2)
+                stat.min = min(nums)
+                stat.max = max(nums)
+
+        elif q["type"] == "boolean":
+            stat.true_count = sum(1 for a in answers if a is True)
+            stat.false_count = sum(1 for a in answers if a is False)
+
+        elif q["type"] in ("single_choice", "multiple_choice"):
+            counts = {opt["id"]: 0 for opt in q.get("options") or []}
+            for a in answers:
+                if q["type"] == "single_choice" and isinstance(a, str) and a in counts:
+                    counts[a] += 1
+                elif q["type"] == "multiple_choice" and isinstance(a, list):
+                    for opt_id in a:
+                        if opt_id in counts:
+                            counts[opt_id] += 1
+            stat.option_counts = counts
+
+        elif q["type"] in ("text", "textarea"):
+            texts = [a.strip() for a in answers if isinstance(a, str) and a.strip()]
+            stat.sample_answers = [t[:240] for t in texts[:5]]
+            if texts:
+                ai_summary = await summarize_texts(texts, q["question"])
+                stat.summary = ai_summary or _fallback_text_summary(texts)
+                stat.summary_source = "ai" if ai_summary else "heuristic"
+
+        question_stats.append(stat)
+
+    return DashboardResponse(
+        project_id=project.id,
+        project_name=project.name,
+        description=project.description,
+        status=project.status,
+        total_responses=len(responses),
+        questions=question_stats,
+        generated_at=datetime.datetime.now(datetime.timezone.utc),
+    )
 
 
 async def get_response(response_id: str, user: User, db: AsyncSession) -> ResponseOut:

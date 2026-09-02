@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/shared/components/ui/button";
 import { Textarea } from "@/shared/components/ui/textarea";
+import { Input } from "@/shared/components/ui/input";
 import {
   Card,
   CardContent,
@@ -83,8 +84,26 @@ export function ProjectFillForm({ project }: { project: Project }) {
               {q.question} {q.required && <span className="text-destructive">*</span>}
             </p>
 
-            {q.type === "text" && (
+            {(q.type === "text" || q.type === "textarea") && (
               <Textarea
+                value={(answers[q.id] as string) ?? ""}
+                onChange={(e) => setAnswer(q.id, e.target.value)}
+              />
+            )}
+
+            {q.type === "number" && (
+              <Input
+                type="number"
+                value={(answers[q.id] as number | string) ?? ""}
+                onChange={(e) =>
+                  setAnswer(q.id, e.target.value === "" ? "" : Number(e.target.value))
+                }
+              />
+            )}
+
+            {q.type === "date" && (
+              <Input
+                type="date"
                 value={(answers[q.id] as string) ?? ""}
                 onChange={(e) => setAnswer(q.id, e.target.value)}
               />
